@@ -1,0 +1,20 @@
+import Sidebar from '@/components/Sidebar'
+import Header from '@/components/Header'
+
+export default function DashboardLayout({
+    children,
+}: {
+    children: React.ReactNode
+}) {
+    return (
+          <div className="min-h-screen bg-surface-light">
+                <Sidebar />
+                <div className="lg:pl-64">
+                        <Header />
+                        <main className="p-6">
+                          {children}
+                        </main>main>
+                </div>div>
+          </div>div>
+        )
+}</div>
