@@ -1,5 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 
+interface Subscription {
+  id: string
+  status: string
+}
+
 interface Client {
   id: string
   name: string
@@ -8,7 +13,9 @@ interface Client {
   primary_phone: string | null
   billing_address: string | null
   is_active: boolean
+  is_subscribed: boolean
   created_at: string
+  subscriptions: Subscription[]
 }
 
 export default async function ClientsPage() {
@@ -16,7 +23,10 @@ export default async function ClientsPage() {
 
   const { data: clients, error } = await supabase
     .from('clients')
-    .select('*')
+    .select(`
+      *,
+      subscriptions(id, status)
+    `)
     .order('name', { ascending: true })
 
   return (
@@ -45,44 +55,59 @@ export default async function ClientsPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empresa</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contacto</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Suscripción</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {clients?.map((client: Client) => (
-              <tr key={client.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <div className="flex items-center">
-                    <div className="h-10 w-10 rounded-full bg-brand-accent text-white flex items-center justify-center font-semibold">
-                      {client.name.charAt(0).toUpperCase()}
+            {clients?.map((client: Client) => {
+              const hasActiveSubscription = client.subscriptions?.some(s => s.status === 'active')
+              return (
+                <tr key={client.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center">
+                      <div className="h-10 w-10 rounded-full bg-brand-accent text-white flex items-center justify-center font-semibold">
+                        {client.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                      </div>
                     </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">{client.name}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {client.company_name || '-'}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900">{client.primary_email || '-'}</div>
-                  <div className="text-sm text-gray-500">{client.primary_phone || '-'}</div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${client.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {client.is_active ? 'Activo' : 'Inactivo'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <a href={`/dashboard/clients/${client.id}`} className="text-brand-accent hover:text-brand-primary">
-                    Ver
-                  </a>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {client.company_name || '-'}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900">{client.primary_email || '-'}</div>
+                    <div className="text-sm text-gray-500">{client.primary_phone || '-'}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${client.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {client.is_active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {hasActiveSubscription ? (
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                        Suscrito
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+                        No suscrito
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <a href={`/dashboard/clients/${client.id}`} className="text-brand-accent hover:text-brand-primary">
+                      Ver
+                    </a>
+                  </td>
+                </tr>
+              )
+            })}
             {(!clients || clients.length === 0) && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                   No hay clientes registrados
                 </td>
               </tr>

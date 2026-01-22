@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import SearchBar from './SearchBar'
 
 export default function Header() {
   const router = useRouter()
@@ -15,10 +16,13 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-white shadow">
       <div className="flex flex-1 justify-between px-4">
-        <div className="flex flex-1 items-center">
+        <div className="flex flex-1 items-center gap-4">
           <h2 className="text-lg font-semibold text-brand-primary lg:hidden">
             AF DEVS Admin
           </h2>
+          <div className="hidden md:block flex-1 max-w-md">
+            <SearchBar />
+          </div>
         </div>
         <div className="ml-4 flex items-center md:ml-6">
           <button
