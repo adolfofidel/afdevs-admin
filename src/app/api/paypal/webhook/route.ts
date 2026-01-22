@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
 
         const { data: subscription } = await supabase
           .from('subscriptions')
-          .select('client_id')
+          .select('id, client_id')
           .eq('paypal_subscription_id', subscriptionId)
           .single()
 
