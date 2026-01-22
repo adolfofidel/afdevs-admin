@@ -43,8 +43,7 @@ export default function Sidebar() {
                                                                                                   stroke="currentColor"
                                                                                                 >
                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
-                                                                            </svg>svg>
-                                                            {item.name}
+                                                                            </svg>svg>                                                            {item.name}
                                                           </Link>Link>
                                                         )
                                   })}
