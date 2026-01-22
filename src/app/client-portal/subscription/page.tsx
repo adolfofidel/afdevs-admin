@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Subscription {
@@ -10,7 +10,7 @@ interface Subscription {
   price_usd: number
   started_at: string
   next_billing_date: string | null
-  paypal_subscription_id: string | null
+  azul_order_id: string | null
   cancelled_at: string | null
 }
 
@@ -19,13 +19,7 @@ interface PaymentHistory {
   amount_usd: number
   status: string
   payment_date: string
-  paypal_transaction_id: string | null
-}
-
-declare global {
-  interface Window {
-    paypal?: any
-  }
+  azul_transaction_id: string | null
 }
 
 export default function SubscriptionPage() {
@@ -34,10 +28,20 @@ export default function SubscriptionPage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([])
   const [loading, setLoading] = useState(true)
-  const [paypalLoaded, setPaypalLoaded] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Card form state
+  const [cardNumber, setCardNumber] = useState('')
+  const [expMonth, setExpMonth] = useState('')
+  const [expYear, setExpYear] = useState('')
+  const [cvc, setCvc] = useState('')
+  const [cardholderName, setCardholderName] = useState('')
+  const [saveCard, setSaveCard] = useState(true)
 
   const PLAN_PRICE = 255
   const PLAN_NAME = 'Preventive Tech Maintenance'
+  const ITBIS_RATE = 0.18
 
   useEffect(() => {
     const fetchData = async () => {
@@ -88,85 +92,77 @@ export default function SubscriptionPage() {
     fetchData()
   }, [supabase])
 
-  // Load PayPal SDK
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !window.paypal) {
-      const script = document.createElement('script')
-      // Use sandbox for testing - replace with live client ID for production
-      script.src = 'https://www.paypal.com/sdk/js?client-id=sb&vault=true&intent=subscription'
-      script.async = true
-      script.onload = () => setPaypalLoaded(true)
-      document.body.appendChild(script)
-    } else if (window.paypal) {
-      setPaypalLoaded(true)
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '')
+    const matches = v.match(/\d{4,16}/g)
+    const match = (matches && matches[0]) || ''
+    const parts = []
+
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4))
     }
-  }, [])
 
-  const initPayPalButtons = useCallback(() => {
-    if (!window.paypal || !clientId) return
+    if (parts.length) {
+      return parts.join(' ')
+    } else {
+      return value
+    }
+  }
 
-    const container = document.getElementById('paypal-button-container')
-    if (!container) return
-    container.innerHTML = ''
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCardNumber(e.target.value)
+    if (formatted.replace(/\s/g, '').length <= 16) {
+      setCardNumber(formatted)
+    }
+  }
 
-    window.paypal.Buttons({
-      style: {
-        shape: 'rect',
-        color: 'blue',
-        layout: 'vertical',
-        label: 'subscribe'
-      },
-      createSubscription: async (data: any, actions: any) => {
-        // In production, you would create a plan in PayPal Dashboard
-        // and use that plan ID here. For now, using a placeholder.
-        // Replace 'P-XXXXXXXXXXXXXXXXX' with your actual PayPal plan ID
-        return actions.subscription.create({
-          plan_id: 'P-SUBSCRIPTION_PLAN_ID' // Replace with real plan ID from PayPal
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setProcessing(true)
+
+    try {
+      // Format expiration as YYYYMM
+      const expiration = `20${expYear}${expMonth.padStart(2, '0')}`
+
+      const response = await fetch('/api/azul/create-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          clientId,
+          cardNumber: cardNumber.replace(/\s/g, ''),
+          expiration,
+          cvc,
+          cardholderName,
+          saveCard
         })
-      },
-      onApprove: async (data: any, actions: any) => {
-        // Subscription approved - save to database
-        const { error } = await supabase
-          .from('subscriptions')
-          .insert({
-            client_id: clientId,
-            status: 'active',
-            plan_name: PLAN_NAME,
-            price_usd: PLAN_PRICE,
-            paypal_subscription_id: data.subscriptionID,
-            started_at: new Date().toISOString(),
-            next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-          })
-          .select()
-          .single()
+      })
 
-        if (!error) {
-          // Update client's subscription status
-          await supabase
-            .from('clients')
-            .update({
-              is_subscribed: true,
-              subscription_status: 'active',
-              paypal_customer_id: data.subscriptionID
-            })
-            .eq('id', clientId)
+      const data = await response.json()
 
-          // Refresh the page to show updated subscription
-          window.location.reload()
-        }
-      },
-      onError: (err: any) => {
-        console.error('PayPal error:', err)
-        alert('Hubo un error al procesar el pago. Por favor intente de nuevo.')
+      if (!response.ok) {
+        setError(data.error || 'Error al procesar el pago')
+        setProcessing(false)
+        return
       }
-    }).render('#paypal-button-container')
-  }, [clientId, supabase])
 
-  useEffect(() => {
-    if (paypalLoaded && clientId && !subscription) {
-      initPayPalButtons()
+      if (data.requires3DS) {
+        // Handle 3DS authentication if needed
+        setError('Se requiere autenticación adicional. Por favor contacte soporte.')
+        setProcessing(false)
+        return
+      }
+
+      // Success - reload page
+      window.location.reload()
+    } catch (err) {
+      console.error('Payment error:', err)
+      setError('Error al procesar el pago. Por favor intente de nuevo.')
+      setProcessing(false)
     }
-  }, [paypalLoaded, clientId, subscription, initPayPalButtons])
+  }
 
   const handleCancelSubscription = async () => {
     if (!subscription || !confirm('¿Estás seguro de que deseas cancelar tu suscripción?')) {
@@ -191,9 +187,6 @@ export default function SubscriptionPage() {
       })
       .eq('id', clientId)
 
-    // Note: In production, you would also cancel the PayPal subscription via API
-    // using the paypal_subscription_id
-
     window.location.reload()
   }
 
@@ -204,6 +197,8 @@ export default function SubscriptionPage() {
       </div>
     )
   }
+
+  const totalWithTax = PLAN_PRICE * (1 + ITBIS_RATE)
 
   return (
     <div className="space-y-8">
@@ -222,10 +217,11 @@ export default function SubscriptionPage() {
           </div>
 
           <div className="p-6">
-            <div className="flex items-baseline gap-1 mb-6">
+            <div className="flex items-baseline gap-1 mb-2">
               <span className="text-4xl font-bold text-gray-900">${PLAN_PRICE}</span>
               <span className="text-gray-500">/mes</span>
             </div>
+            <p className="text-sm text-gray-500 mb-6">+ ITBIS (18%): ${(PLAN_PRICE * ITBIS_RATE).toFixed(2)} = <strong>${totalWithTax.toFixed(2)}</strong> total</p>
 
             <ul className="space-y-3 mb-6">
               {[
@@ -279,17 +275,47 @@ export default function SubscriptionPage() {
                     Cancelada el: {subscription.cancelled_at ? new Date(subscription.cancelled_at).toLocaleDateString() : 'N/A'}
                   </p>
                 </div>
-                <div id="paypal-button-container" className="mt-4"></div>
+                {/* Show payment form for resubscription */}
+                <PaymentForm
+                  cardNumber={cardNumber}
+                  expMonth={expMonth}
+                  expYear={expYear}
+                  cvc={cvc}
+                  cardholderName={cardholderName}
+                  saveCard={saveCard}
+                  processing={processing}
+                  error={error}
+                  onCardNumberChange={handleCardNumberChange}
+                  onExpMonthChange={(e) => setExpMonth(e.target.value)}
+                  onExpYearChange={(e) => setExpYear(e.target.value)}
+                  onCvcChange={(e) => setCvc(e.target.value.slice(0, 4))}
+                  onCardholderNameChange={(e) => setCardholderName(e.target.value)}
+                  onSaveCardChange={(e) => setSaveCard(e.target.checked)}
+                  onSubmit={handleSubmit}
+                  totalAmount={totalWithTax}
+                />
               </div>
             ) : (
               <div>
-                <p className="text-sm text-gray-500 mb-4">Suscríbete ahora con PayPal:</p>
-                <div id="paypal-button-container"></div>
-                {!paypalLoaded && (
-                  <div className="flex items-center justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-accent"></div>
-                  </div>
-                )}
+                <p className="text-sm text-gray-500 mb-4">Suscríbete ahora con tarjeta de crédito o débito:</p>
+                <PaymentForm
+                  cardNumber={cardNumber}
+                  expMonth={expMonth}
+                  expYear={expYear}
+                  cvc={cvc}
+                  cardholderName={cardholderName}
+                  saveCard={saveCard}
+                  processing={processing}
+                  error={error}
+                  onCardNumberChange={handleCardNumberChange}
+                  onExpMonthChange={(e) => setExpMonth(e.target.value)}
+                  onExpYearChange={(e) => setExpYear(e.target.value)}
+                  onCvcChange={(e) => setCvc(e.target.value.slice(0, 4))}
+                  onCardholderNameChange={(e) => setCardholderName(e.target.value)}
+                  onSaveCardChange={(e) => setSaveCard(e.target.checked)}
+                  onSubmit={handleSubmit}
+                  totalAmount={totalWithTax}
+                />
               </div>
             )}
           </div>
@@ -307,7 +333,8 @@ export default function SubscriptionPage() {
                     subscription.status === 'active' ? 'text-green-600' : 'text-gray-600'
                   }`}>
                     {subscription.status === 'active' ? 'Activa' :
-                     subscription.status === 'cancelled' ? 'Cancelada' : subscription.status}
+                     subscription.status === 'cancelled' ? 'Cancelada' :
+                     subscription.status === 'past_due' ? 'Pago pendiente' : subscription.status}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -316,7 +343,7 @@ export default function SubscriptionPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Precio:</span>
-                  <span className="font-medium">${subscription.price_usd}/mes</span>
+                  <span className="font-medium">${subscription.price_usd}/mes + ITBIS</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Fecha inicio:</span>
@@ -340,12 +367,21 @@ export default function SubscriptionPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Método de Pago</h3>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-8 bg-blue-600 rounded flex items-center justify-center">
-                <span className="text-white text-xs font-bold">PayPal</span>
+              <div className="flex gap-1">
+                <div className="w-10 h-6 bg-blue-700 rounded flex items-center justify-center">
+                  <span className="text-white text-[8px] font-bold">VISA</span>
+                </div>
+                <div className="w-10 h-6 bg-red-600 rounded flex items-center justify-center">
+                  <span className="text-white text-[8px] font-bold">MC</span>
+                </div>
               </div>
               <span className="text-sm text-gray-600">
-                {subscription?.paypal_subscription_id ? 'PayPal conectado' : 'No configurado'}
+                {subscription?.azul_order_id ? 'Tarjeta guardada' : 'No configurado'}
               </span>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <img src="https://www.azul.com.do/Portals/0/Images/logo-azul.png" alt="AZUL" className="h-6" />
+              <span className="text-xs text-gray-400">Procesado por AZUL</span>
             </div>
           </div>
         </div>
@@ -390,7 +426,7 @@ export default function SubscriptionPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 font-mono">
-                      {payment.paypal_transaction_id || '-'}
+                      {payment.azul_transaction_id || '-'}
                     </td>
                   </tr>
                 ))}
@@ -400,5 +436,181 @@ export default function SubscriptionPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// Payment Form Component
+interface PaymentFormProps {
+  cardNumber: string
+  expMonth: string
+  expYear: string
+  cvc: string
+  cardholderName: string
+  saveCard: boolean
+  processing: boolean
+  error: string | null
+  totalAmount: number
+  onCardNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onExpMonthChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
+  onExpYearChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
+  onCvcChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onCardholderNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onSaveCardChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onSubmit: (e: React.FormEvent) => void
+}
+
+function PaymentForm({
+  cardNumber,
+  expMonth,
+  expYear,
+  cvc,
+  cardholderName,
+  saveCard,
+  processing,
+  error,
+  totalAmount,
+  onCardNumberChange,
+  onExpMonthChange,
+  onExpYearChange,
+  onCvcChange,
+  onCardholderNameChange,
+  onSaveCardChange,
+  onSubmit
+}: PaymentFormProps) {
+  const currentYear = new Date().getFullYear()
+  const years = Array.from({ length: 10 }, (_, i) => currentYear + i)
+  const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'))
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Nombre en la tarjeta
+        </label>
+        <input
+          type="text"
+          value={cardholderName}
+          onChange={onCardholderNameChange}
+          placeholder="NOMBRE APELLIDO"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-accent focus:border-brand-accent uppercase"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Número de tarjeta
+        </label>
+        <div className="relative">
+          <input
+            type="text"
+            value={cardNumber}
+            onChange={onCardNumberChange}
+            placeholder="1234 5678 9012 3456"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-accent focus:border-brand-accent"
+            required
+          />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
+            <div className="w-8 h-5 bg-blue-700 rounded flex items-center justify-center">
+              <span className="text-white text-[6px] font-bold">VISA</span>
+            </div>
+            <div className="w-8 h-5 bg-red-600 rounded flex items-center justify-center">
+              <span className="text-white text-[6px] font-bold">MC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Mes
+          </label>
+          <select
+            value={expMonth}
+            onChange={onExpMonthChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-accent focus:border-brand-accent"
+            required
+          >
+            <option value="">MM</option>
+            {months.map((month) => (
+              <option key={month} value={month}>{month}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Año
+          </label>
+          <select
+            value={expYear}
+            onChange={onExpYearChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-accent focus:border-brand-accent"
+            required
+          >
+            <option value="">AA</option>
+            {years.map((year) => (
+              <option key={year} value={year.toString().slice(-2)}>
+                {year.toString().slice(-2)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            CVV
+          </label>
+          <input
+            type="text"
+            value={cvc}
+            onChange={onCvcChange}
+            placeholder="123"
+            maxLength={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-accent focus:border-brand-accent"
+            required
+          />
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={saveCard}
+          onChange={onSaveCardChange}
+          className="w-4 h-4 text-brand-accent border-gray-300 rounded focus:ring-brand-accent"
+        />
+        <span className="text-sm text-gray-600">Guardar tarjeta para pagos futuros</span>
+      </label>
+
+      <button
+        type="submit"
+        disabled={processing}
+        className="w-full py-3 px-4 bg-brand-accent text-white rounded-lg font-medium hover:bg-brand-accent/90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {processing ? (
+          <>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            Procesando...
+          </>
+        ) : (
+          <>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Pagar ${totalAmount.toFixed(2)} USD
+          </>
+        )}
+      </button>
+
+      <p className="text-xs text-gray-400 text-center">
+        Pago seguro procesado por AZUL. Aceptamos Visa y MasterCard.
+      </p>
+    </form>
   )
 }
