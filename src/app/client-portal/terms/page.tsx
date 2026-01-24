@@ -4,54 +4,54 @@ import Link from 'next/link'
 
 export default function TermsPage() {
   return (
-      <div className="min-h-screen bg-gray-950 py-12 px-4">
-            <div className="max-w-4xl mx-auto">
-                    <div className="bg-gray-900 rounded-2xl p-8 shadow-xl border border-gray-800">
-                              <h1 className="text-3xl font-bold text-white mb-2">Términos y Condiciones</h1>
-                                        <p className="text-gray-400 mb-8">Última actualización: Enero 2026</p>
-                                        
-                                                  <div className="prose prose-invert max-w-none space-y-6">
-                                                              <section>
-                                                                            <h2 className="text-xl font-semibold text-white mb-3">1. Aceptación de los Términos</h2>
-                                                                                          <p className="text-gray-300">Al acceder y utilizar los servicios de AF DEVS, usted acepta estar legalmente vinculado por estos Términos y Condiciones.</p>
-                                                                                                      </section>
-                                                                                                      
-                                                                                                                  <section>
-                                                                                                                                <h2 className="text-xl font-semibold text-white mb-3">2. Descripción del Servicio</h2>
-                                                                                                                                              <p className="text-gray-300">AF DEVS proporciona una plataforma de gestión de operaciones que incluye gestión de propiedades, dashboard administrativo, procesamiento de pagos recurrentes y reportes.</p>
-                                                                                                                                                          </section>
-                                                                                                                                                          
-                                                                                                                                                                      <section>
-                                                                                                                                                                                    <h2 className="text-xl font-semibold text-white mb-3">3. Pagos y Facturación</h2>
-                                                                                                                                                                                                  <p className="text-gray-300">Los precios están en USD e incluyen ITBIS (18%). Las suscripciones se facturan mensualmente. Los pagos son procesados por AZUL bajo estándares PCI DSS.</p>
-                                                                                                                                                                                                              </section>
-                                                                                                                                                                                                              
-                                                                                                                                                                                                                          <section>
-                                                                                                                                                                                                                                        <h2 className="text-xl font-semibold text-white mb-3">4. Cancelación</h2>
-                                                                                                                                                                                                                                                      <p className="text-gray-300">Puede cancelar su suscripción en cualquier momento. La cancelación será efectiva al final del período de facturación actual.</p>
-                                                                                                                                                                                                                                                                  </section>
-                                                                                                                                                                                                                                                                  
-                                                                                                                                                                                                                                                                              <section>
-                                                                                                                                                                                                                                                                                            <h2 className="text-xl font-semibold text-white mb-3">5. Ley Aplicable</h2>
-                                                                                                                                                                                                                                                                                                          <p className="text-gray-300">Estos términos se rigen por las leyes de la República Dominicana. Cualquier disputa será sometida a los tribunales de Santo Domingo.</p>
-                                                                                                                                                                                                                                                                                                                      </section>
-                                                                                                                                                                                                                                                                                                                      
-                                                                                                                                                                                                                                                                                                                                  <section>
-                                                                                                                                                                                                                                                                                                                                                <h2 className="text-xl font-semibold text-white mb-3">6. Contacto</h2>
-                                                                                                                                                                                                                                                                                                                                                              <div className="p-4 bg-gray-800 rounded-lg">
-                                                                                                                                                                                                                                                                                                                                                                              <p className="text-gray-300"><strong>Email:</strong> support@afdevs.com</p>
-                                                                                                                                                                                                                                                                                                                                                                                              <p className="text-gray-300"><strong>Web:</strong> www.afdevs.com</p>
-                                                                                                                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                        </section>
-                                                                                                                                                                                                                                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                  
-                                                                                                                                                                                                                                                                                                                                                                                                                                            <div className="mt-8 pt-6 border-t border-gray-700 flex flex-wrap gap-4">
-                                                                                                                                                                                                                                                                                                                                                                                                                                                        <Link href="/client-portal/privacy" className="text-red-400 hover:text-red-300 text-sm">Privacidad</Link>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <Link href="/client-portal/refunds" className="text-red-400 hover:text-red-300 text-sm">Reembolsos</Link>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <Link href="/client-portal/security" className="text-red-400 hover:text-red-300 text-sm">Seguridad</Link>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              )
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              }'
+    <div className="min-h-screen bg-gray-950 py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-gray-900 rounded-2xl p-8 shadow-xl border border-gray-800">
+          <h1 className="text-3xl font-bold text-white mb-2">Términos y Condiciones</h1>
+          <p className="text-gray-400 mb-8">Última actualización: Enero 2026</p>
+
+          <div className="prose prose-invert max-w-none space-y-6">
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-3">1. Aceptación de los Términos</h2>
+              <p className="text-gray-300">Al acceder y utilizar los servicios de AF DEVS, usted acepta estar legalmente vinculado por estos Términos y Condiciones.</p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-3">2. Descripción del Servicio</h2>
+              <p className="text-gray-300">AF DEVS proporciona una plataforma de gestión de operaciones que incluye gestión de propiedades, dashboard administrativo, procesamiento de pagos recurrentes y reportes.</p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-3">3. Pagos y Facturación</h2>
+              <p className="text-gray-300">Los precios están en USD e incluyen ITBIS (18%). Las suscripciones se facturan mensualmente. Los pagos son procesados por AZUL bajo estándares PCI DSS.</p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-3">4. Cancelación</h2>
+              <p className="text-gray-300">Puede cancelar su suscripción en cualquier momento. La cancelación será efectiva al final del período de facturación actual.</p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-3">5. Ley Aplicable</h2>
+              <p className="text-gray-300">Estos términos se rigen por las leyes de la República Dominicana. Cualquier disputa será sometida a los tribunales de Santo Domingo.</p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-3">6. Contacto</h2>
+              <div className="p-4 bg-gray-800 rounded-lg">
+                <p className="text-gray-300"><strong>Email:</strong> support@afdevs.com</p>
+                <p className="text-gray-300"><strong>Web:</strong> www.afdevs.com</p>
+              </div>
+            </section>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-gray-700 flex flex-wrap gap-4">
+            <Link href="/client-portal/privacy" className="text-red-400 hover:text-red-300 text-sm">Privacidad</Link>
+            <Link href="/client-portal/refunds" className="text-red-400 hover:text-red-300 text-sm">Reembolsos</Link>
+            <Link href="/client-portal/security" className="text-red-400 hover:text-red-300 text-sm">Seguridad</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
